@@ -1,9 +1,4 @@
-A github mirror (and potential place to collect improvements)
-for the devmem2 utility.
-
-Originally written by, and hosted at, www.lartmaker.nl/lartware/ .
-
-From `devmem2.c` header comment:
+`devmem2.c` header comment:
 
 ```
 devmem2.c: Simple program to read/write from/to any location in memory.
@@ -28,4 +23,9 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program, in the file COPYING.
+```
+
+```
+build
+g++ devmem4.cpp -o devmem4 
 ```
