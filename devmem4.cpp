@@ -124,7 +124,7 @@ void local_read(struct local &cmd)
 				read_result = *reinterpret_cast<volatile unsigned long*>(addr);
 				break;
 			default:
-				std::cerr << "Illegal data type '" << cmd.access_type << "'.\n";
+				std::cerr << "Illegal data type " << cmd.access_type << std::endl;
 				return;
 		}
 
@@ -182,7 +182,7 @@ void local_write(struct local &cmd)
 			read_result = *reinterpret_cast<volatile unsigned long*>(cmd.virt_addr);
 			break;
 		default:
-			std::cerr << "Illegal data type '" << cmd.access_type << "'." << std::endl;
+			std::cerr << "Illegal data type " << cmd.access_type << std::endl;
 			return;
 	}
 
@@ -205,7 +205,7 @@ void local_write(struct local &cmd)
 			std::cout << "0x" << std::setw(16) << std::hex << cmd.value << ", ("<< read_result << ")" << std::endl;
 			break;
 		default:
-			std::cerr << "Illegal data type " << cmd.access_type << "'." << std::endl;
+			std::cerr << "Illegal data type " << cmd.access_type << std::endl;
 			return;  
 	}
 }
@@ -274,7 +274,7 @@ void pci_read(struct pci &cmd)
 				read_result = *(reinterpret_cast<volatile unsigned long *>(cmd.bar_addr) + addr);
 				break;
 			default:
-				std::cerr << "Illegal data type '" << cmd.access_type << std::endl;
+				std::cerr << "Illegal data type " << cmd.access_type << std::endl;
 				return;
 		}
 
@@ -316,52 +316,32 @@ void pci_write(struct pci &cmd)
 	switch (cmd.access_type)
 	{
 		case 8:
-			*(reinterpret_cast<volatile unsigned char*>(cmd.bar_addr) + cmd.addr) = static_cast<unsigned char>(cmd.value);
+			*(reinterpret_cast<volatile unsigned char*>(cmd.bar_addr + cmd.addr)) = static_cast<unsigned char>(cmd.value);
 			msync((void *)(cmd.bar_addr + cmd.addr), 1, MS_SYNC | MS_INVALIDATE);
 			read_result = *static_cast<volatile unsigned char*>(cmd.bar_addr + cmd.addr);
 			break;
 		case 16:
-			*(reinterpret_cast<volatile unsigned short int*>(cmd.bar_addr) + cmd.addr) = static_cast<unsigned short int>(cmd.value);
+			*(reinterpret_cast<volatile unsigned short int*>(cmd.bar_addr + cmd.addr)) = static_cast<unsigned short int>(cmd.value);
 			msync((void *)(cmd.bar_addr + cmd.addr), 2, MS_SYNC | MS_INVALIDATE);
 			read_result = *(reinterpret_cast<volatile unsigned short int*>(cmd.bar_addr) + cmd.addr);
 			break;
 		case 32:
-			*(reinterpret_cast<volatile unsigned int*>(cmd.bar_addr) + cmd.addr) = static_cast<unsigned int>(cmd.value);
+			*(reinterpret_cast<volatile unsigned int*>(cmd.bar_addr + cmd.addr)) = static_cast<unsigned int>(cmd.value);
 			msync((void *)(cmd.bar_addr + cmd.addr), 4, MS_SYNC | MS_INVALIDATE);
 			read_result = *(reinterpret_cast<volatile unsigned long*>(cmd.bar_addr) + cmd.addr);
 			break;
 		case 64:
-			*(reinterpret_cast<volatile unsigned long*>(cmd.bar_addr) + cmd.addr) = static_cast<unsigned long>(cmd.value);
+			*(reinterpret_cast<volatile unsigned long*>(cmd.bar_addr + cmd.addr)) = static_cast<unsigned long>(cmd.value);
 			msync((void *)(cmd.bar_addr + cmd.addr), 8, MS_SYNC | MS_INVALIDATE);
 			read_result = *(reinterpret_cast<volatile unsigned long*>(cmd.bar_addr) + cmd.addr);
 			break;
 		default:
-			std::cerr << "Illegal data type '" << cmd.access_type << "'." << std::endl;
+			std::cerr << "Illegal data type " << cmd.access_type << std::endl;
 			return;
 	}
 
-	switch (cmd.access_type)
-	{
-		case 8:
-			std::cout << "0x" << std::hex << cmd.addr << ": ";
-			std::cout << std::setw(2) << std::hex << cmd.value << ", ("<< read_result << ")" << std::endl;
-			break;
-		case 16: 
-			std::cout << "0x" << std::hex << cmd.addr << ": ";
-			std::cout << "0x" << std::setw(4) << std::hex << cmd.value << ", ("<< read_result << ")" << std::endl;
-			break;
-		case 32:
-			std::cout << "0x" << std::hex << cmd.addr << ": ";
-			std::cout << "0x" << std::setw(8) << std::hex << cmd.value << ", ("<< read_result << ")" << std::endl;
-			break;
-		case 64:
-			std::cout << "0x" << std::hex << cmd.addr << ": ";
-			std::cout << "0x" << std::setw(16) << std::hex << cmd.value << ", ("<< read_result << ")" << std::endl;
-			break;
-		default:
-			std::cerr << "Illegal data type '" << cmd.access_type << "'." << std::endl;
-			return;  
-	}
+	std::cout << "0x" << std::hex << cmd.addr << ": ";
+	std::cout << std::left << "0x" << std::hex << cmd.value << ", (0x"<< read_result << ")" << std::endl;
 }
 
 bool pci_open(struct pci &dev)
@@ -372,15 +352,13 @@ bool pci_open(struct pci &dev)
 			dev.domain, dev.bus, dev.slot, dev.function, dev.bar);
 	dev.fd = open(dev.filename, O_RDWR | O_SYNC);
 	if (dev.fd < 0) {
-		printf("Open failed for file '%s': errno %d, %s\n",
-			dev.filename, errno, strerror(errno));
+		std::cout << "Open failed for file " << dev.filename << ' ' << errno << ' ' << strerror(errno) << std::endl;
 		return false;
 	}
 
 	status = fstat(dev.fd, &statbuf);
 	if (status < 0) {
-		printf("fstat() failed: errno %d, %s\n",
-			errno, strerror(errno));
+		std::cout << "fstat() failed: errno " << errno << ' ' << strerror(errno) << std::endl;
 		return false;
 	}
 	dev.size = statbuf.st_size;
@@ -389,7 +367,7 @@ bool pci_open(struct pci &dev)
 	dev.maddr = (unsigned char *)mmap(NULL, (size_t)(dev.size), PROT_READ|PROT_WRITE, MAP_SHARED,
 				dev.fd, 0);
 	if (dev.maddr == (unsigned char *)MAP_FAILED) {
-		printf("BARs that are I/O ports are not supported by this tool\n");
+		std::cout << "BARs that are I/O ports are not supported by this tool" << std::endl;
 		dev.maddr = 0;
 		close(dev.fd);
 		return false;
@@ -403,27 +381,29 @@ bool pci_open(struct pci &dev)
 				dev.domain, dev.bus, dev.slot, dev.function);
 		fd = open(configname, O_RDWR | O_SYNC);
 		if (dev.fd < 0) {
-			printf("Open failed for file '%s': errno %d, %s\n",
-				configname, errno, strerror(errno));
-			return -1;
+			std::cout << "Open failed for file " <<	configname << ' ' << errno << ' ' << strerror(errno) << std::endl;
+			return false;
 		}
 
 		status = lseek(fd, 0x10 + 4*dev.bar, SEEK_SET);
 		if (status < 0) {
-			printf("Error: configuration space lseek failed\n");
+			std::cout << "Error: configuration space lseek failed" << std::endl;
 			close(fd);
-			return -1;
+			return false;
 		}
 		status = read(fd, &dev.phys, 4);
 		if (status < 0) {
-			printf("Error: configuration space read failed\n");
+			std::cout << "Error: configuration space read failed" << std::endl;
 			close(fd);
-			return -1;
+			return false;
 		}
 		dev.offset = ((dev.phys & 0xFFFFFFF0) % 0x1000);
 		dev.bar_addr = (dev.maddr + dev.offset);
 		close(fd);
 	}
+
+	dev.opened = true;
+	choose = "pci";
 
 	return true;
 }
@@ -436,67 +416,17 @@ void pci_close(struct pci &dev)
 
 int use_pci(struct pci &_pci)
 {
-	int opt;		
-	int status;
-	char *slot = NULL;	
-	char *cmdFilePath = NULL;
-	struct stat statbuf;
-
 	if (choose == "pci" && _pci.opened)
 	{
 		return 0;
 	}
 
-	snprintf(_pci.filename, 99, "/sys/bus/pci/devices/%04x:%02x:%02x.%1x/resource%d", _pci.domain, _pci.bus, _pci.slot, _pci.function, _pci.bar);
-	_pci.fd = open(_pci.filename, O_RDWR | O_SYNC);
-	if (_pci.fd < 0) {
-		std::cout << "Open failed for file " << _pci.filename << " " << errno << " " << strerror(errno) << std::endl;
+	if (pci_open(_pci)) {
+		return 0;
+	}
+	else {
 		return -1;
 	}
-
-	status = fstat(_pci.fd, &statbuf);
-	if (status < 0) {
-		std::cout << "fstat() failed " << errno << " " << strerror(errno) << std::endl;
-		return -1;
-	}
-	_pci.size = statbuf.st_size;
-
-	_pci.maddr = (unsigned char *)mmap(NULL, (size_t)(_pci.size), PROT_READ|PROT_WRITE, MAP_SHARED, _pci.fd,	0);
-	if (_pci.maddr == (unsigned char *)MAP_FAILED) {
-		std::cout << "BARs that are I/O ports are not supported by this tool" << std::endl;
-		_pci.maddr = 0;
-		close(_pci.fd);
-		return -1;
-	}
-
-	char configname[100];
-	int fd;
-
-	snprintf(configname, 99, "/sys/bus/pci/devices/%04x:%02x:%02x.%1x/config",  _pci.domain, _pci.bus, _pci.slot, _pci.function);
-	fd = open(configname, O_RDWR | O_SYNC);
-	if (_pci.fd < 0) {
-		std::cout << "Open failed for file" << configname << errno << strerror(errno) << std::endl;
-		return -1;
-	}
-
-	status = lseek(fd, 0x10 + 4*_pci.bar, SEEK_SET);
-	if (status < 0) {
-		std::cout << "Error: configuration space lseek failed" << std::endl;
-		close(fd);
-		return -1;
-	}
-	status = read(fd, &_pci.phys, 4);
-	if (status < 0) {
-		std::cout << "Error: configuration space read failed" << std::endl;
-		close(fd);
-		return -1;
-	}
-	_pci.offset = ((_pci.phys & 0xFFFFFFF0) % 0x1000);
-	_pci.addr = reinterpret_cast<uint64_t>(_pci.maddr + _pci.offset);
-	close(fd);
-	_pci.opened = true;
-
-	choose = "pci";
 
 	return 0;
 }
@@ -631,7 +561,7 @@ int process_command(char *cmd)
 		{
 			if (param_list.size() != cmd_use_pci.size())
 			{
-				std::cout << "need more arguments\n";
+				std::cout << "require more arguments" << std::endl;
 				return 0;
 			}
 
@@ -658,7 +588,7 @@ int process_command(char *cmd)
 
 		if (param_list.size() == 1)
 		{
-			std::cout << "need address at lease" << param_list[1] << std::endl;
+			std::cout << "need address at lease " << param_list[1] << std::endl;
 			return 0;
 		}
 
